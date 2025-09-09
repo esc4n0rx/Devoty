@@ -1,0 +1,27 @@
+{
+  "name": "Devoty - Devocionais Diários",
+  "short_name": "Devoty",
+  "description": "Fortaleça sua caminhada espiritual com devocionais diários",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f5dc",
+  "theme_color": "#ffcc80",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["lifestyle", "education", "books"],
+  "lang": "pt-BR",
+  "dir": "ltr"
+}

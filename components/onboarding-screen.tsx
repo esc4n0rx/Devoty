@@ -11,25 +11,25 @@ interface OnboardingScreenProps {
 
 export function OnboardingScreen({ onJoinUs, onLogin }: OnboardingScreenProps) {
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 py-8 overflow-hidden">
-      <div className="max-w-md w-full text-center space-y-8">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 py-4 overflow-hidden">
+      <div className="max-w-md w-full text-center space-y-6 flex flex-col justify-center min-h-screen">
         <motion.div
-          className="mb-8"
+          className="mb-4"
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 1, ease: "easeOut", type: "spring", bounce: 0.3 }}
         >
-          <SunriseAnimation className="mb-6" />
+          <SunriseAnimation className="mb-4" />
         </motion.div>
 
         <motion.div
-          className="space-y-2"
+          className="space-y-1"
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.8, delay: 0.5, ease: "easeOut" }}
         >
           <motion.h1
-            className="text-4xl font-bold text-foreground tracking-tight"
+            className="text-3xl font-bold text-foreground tracking-tight"
             animate={{
               textShadow: [
                 "0 0 0px rgba(255,255,255,0)",
@@ -44,13 +44,13 @@ export function OnboardingScreen({ onJoinUs, onLogin }: OnboardingScreenProps) {
         </motion.div>
 
         <motion.div
-          className="space-y-4"
+          className="space-y-3"
           initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.8, delay: 0.8, ease: "easeOut" }}
         >
           <motion.h2
-            className="text-2xl font-semibold text-foreground text-balance"
+            className="text-xl font-semibold text-foreground text-balance"
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.6, delay: 1 }}
@@ -59,7 +59,7 @@ export function OnboardingScreen({ onJoinUs, onLogin }: OnboardingScreenProps) {
           </motion.h2>
 
           <motion.p
-            className="text-lg text-muted-foreground leading-relaxed text-pretty"
+            className="text-base text-muted-foreground leading-relaxed text-pretty"
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.6, delay: 1.2 }}
@@ -69,7 +69,7 @@ export function OnboardingScreen({ onJoinUs, onLogin }: OnboardingScreenProps) {
           </motion.p>
 
           <motion.p
-            className="text-base text-muted-foreground leading-relaxed text-pretty"
+            className="text-sm text-muted-foreground leading-relaxed text-pretty"
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.6, delay: 1.4 }}
@@ -79,7 +79,7 @@ export function OnboardingScreen({ onJoinUs, onLogin }: OnboardingScreenProps) {
         </motion.div>
 
         <motion.div
-          className="space-y-4 pt-8"
+          className="space-y-3 pt-6"
           initial={{ y: 50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.8, delay: 1.6, ease: "easeOut" }}
@@ -87,7 +87,7 @@ export function OnboardingScreen({ onJoinUs, onLogin }: OnboardingScreenProps) {
           <motion.div whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }} transition={{ duration: 0.2 }}>
             <Button
               onClick={onJoinUs}
-              className="w-full h-14 text-lg font-medium bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl"
+              className="w-full h-12 text-base font-medium bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl"
             >
               <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: 1.8 }}>
                 Junte-se a nós
@@ -99,7 +99,7 @@ export function OnboardingScreen({ onJoinUs, onLogin }: OnboardingScreenProps) {
             <Button
               onClick={onLogin}
               variant="outline"
-              className="w-full h-14 text-lg font-medium border-2 border-border hover:bg-secondary/50 text-foreground rounded-lg transition-all duration-300 bg-transparent shadow-md hover:shadow-lg"
+              className="w-full h-12 text-base font-medium border-2 border-border hover:bg-secondary/50 text-foreground rounded-lg transition-all duration-300 bg-transparent shadow-md hover:shadow-lg"
             >
               <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: 2 }}>
                 Já tenho conta
