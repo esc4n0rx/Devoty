@@ -1,16 +1,34 @@
+// components/app-header.tsx
 "use client"
 
 import { Button } from "@/components/ui/button"
 import { User, Flame } from "lucide-react"
 import { motion } from "framer-motion"
+import { useAuth } from "@/hooks/use-auth"
 
 interface AppHeaderProps {
-  userName?: string
-  streakCount: number
   onProfileClick: () => void
 }
 
-export function AppHeader({ userName = "João", streakCount, onProfileClick }: AppHeaderProps) {
+export function AppHeader({ onProfileClick }: AppHeaderProps) {
+  const { user } = useAuth()
+
+  if (!user) {
+    return (
+      <header className="bg-card/95 backdrop-blur-md border-b border-border sticky top-0 z-50 shadow-sm">
+        <div className="flex items-center justify-between px-6 py-4">
+          <div className="animate-pulse">
+            <div className="h-5 bg-muted rounded w-24 mb-1"></div>
+            <div className="h-4 bg-muted rounded w-32"></div>
+          </div>
+          <div className="animate-pulse">
+            <div className="h-10 w-10 bg-muted rounded-full"></div>
+          </div>
+        </div>
+      </header>
+    )
+  }
+
   return (
     <header className="bg-card/95 backdrop-blur-md border-b border-border sticky top-0 z-50 shadow-sm">
       <div className="flex items-center justify-between px-6 py-4">
@@ -25,7 +43,7 @@ export function AppHeader({ userName = "João", streakCount, onProfileClick }: A
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            Olá, {userName}
+            Olá, {user.nome.split(' ')[0]}
           </motion.h1>
           <motion.p
             className="text-sm text-muted-foreground"
@@ -63,12 +81,12 @@ export function AppHeader({ userName = "João", streakCount, onProfileClick }: A
             </motion.div>
             <motion.span
               className="text-sm font-semibold text-accent"
-              key={streakCount}
+              key={user.chama}
               initial={{ scale: 1.5, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ duration: 0.3 }}
             >
-              {streakCount}
+              {user.chama || 0}
             </motion.span>
           </motion.div>
 

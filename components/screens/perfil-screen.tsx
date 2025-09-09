@@ -1,3 +1,4 @@
+// components/screens/perfil-screen.tsx
 "use client"
 
 import { Button } from "@/components/ui/button"
@@ -6,17 +7,13 @@ import { Input } from "@/components/ui/input"
 import { User, Settings, Award, Calendar, LogOut, Trophy, Star, Edit, ArrowLeft, Save } from "lucide-react"
 import { motion } from "framer-motion"
 import { useState } from "react"
+import { useAuth } from "@/hooks/use-auth"
+import { useToast } from "@/hooks/use-toast"
 
 const achievements = [
   { label: "Dias consecutivos", value: "7 dias", icon: Trophy },
   { label: "Devocionais completos", value: "12", icon: Star },
   { label: "Entradas no diário", value: "8", icon: Award },
-]
-
-const menuItems = [
-  { icon: Settings, label: "Configurações", color: "text-foreground" },
-  { icon: Calendar, label: "Histórico de leituras", color: "text-foreground" },
-  { icon: LogOut, label: "Sair", color: "text-destructive" },
 ]
 
 const readingHistory = [
@@ -30,13 +27,115 @@ const readingHistory = [
 export function PerfilScreen() {
   const [isEditing, setIsEditing] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
-  const [userName, setUserName] = useState("João Silva")
-  const [userEmail, setUserEmail] = useState("joao.silva@email.com")
+  const [loading, setLoading] = useState(false)
+  const [editData, setEditData] = useState({
+    nome: "",
+    email: "",
+    idade: "",
+  })
 
-  const handleSaveProfile = () => {
-    console.log("Perfil salvo:", { name: userName, email: userEmail })
+  const { user, logout, updateProfile } = useAuth()
+  const { toast } = useToast()
+
+  // Inicializar dados de edição quando user estiver disponível
+  useState(() => {
+    if (user && !editData.nome) {
+      setEditData({
+        nome: user.nome,
+        email: user.email,
+        idade: user.idade?.toString() || "",
+      })
+    }
+  })
+
+  const handleSaveProfile = async () => {
+    if (!editData.nome || !editData.email || !editData.idade) {
+      toast({
+        title: "Erro",
+        description: "Todos os campos são obrigatórios",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await updateProfile({
+        nome: editData.nome,
+        email: editData.email,
+        idade: parseInt(editData.idade),
+      })
+
+      if (response.success) {
+        toast({
+          title: "Perfil atualizado!",
+          description: response.message,
+        })
+        setIsEditing(false)
+      }
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro ao atualizar perfil",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    try {
+      await logout()
+      toast({
+        title: "Logout realizado",
+        description: "Você foi desconectado com sucesso",
+      })
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao fazer logout",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleCancelEdit = () => {
+    if (user) {
+      setEditData({
+        nome: user.nome,
+        email: user.email,
+        idade: user.idade?.toString() || "",
+      })
+    }
     setIsEditing(false)
   }
+
+  const menuItems = [
+    { 
+      icon: Settings, 
+      label: "Configurações", 
+      color: "text-foreground",
+      onClick: () => {
+        toast({
+          title: "Em breve",
+          description: "Configurações serão implementadas em breve",
+        })
+      }
+    },
+    { 
+      icon: Calendar, 
+      label: "Histórico de leituras", 
+      color: "text-foreground",
+      onClick: () => setShowHistory(true)
+    },
+    { 
+      icon: LogOut, 
+      label: "Sair", 
+      color: "text-destructive",
+      onClick: handleLogout
+    },
+  ]
 
   if (showHistory) {
     return (
@@ -81,6 +180,14 @@ export function PerfilScreen() {
     )
   }
 
+  if (!user) {
+    return (
+      <div className="p-6 flex items-center justify-center h-full">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
+      </div>
+    )
+  }
+
   return (
     <div className="p-6 space-y-6 max-h-screen overflow-y-auto">
       <motion.div
@@ -115,34 +222,60 @@ export function PerfilScreen() {
           {isEditing ? (
             <div className="space-y-3">
               <Input
-                value={userName}
-                onChange={(e) => setUserName(e.target.value)}
+                value={editData.nome}
+                onChange={(e) => setEditData({ ...editData, nome: e.target.value })}
+                placeholder="Nome completo"
                 className="text-center text-xl font-bold"
+                disabled={loading}
               />
               <Input
-                value={userEmail}
-                onChange={(e) => setUserEmail(e.target.value)}
+                value={editData.email}
+                onChange={(e) => setEditData({ ...editData, email: e.target.value })}
+                placeholder="Email"
+                type="email"
                 className="text-center text-muted-foreground"
+                disabled={loading}
+              />
+              <Input
+                value={editData.idade}
+                onChange={(e) => setEditData({ ...editData, idade: e.target.value })}
+                placeholder="Idade"
+                type="number"
+                min="13"
+                max="120"
+                className="text-center text-muted-foreground"
+                disabled={loading}
               />
               <div className="flex gap-2 justify-center">
                 <Button
                   onClick={handleSaveProfile}
                   size="sm"
                   className="bg-accent hover:bg-accent/90 text-accent-foreground"
+                  disabled={loading}
                 >
                   <Save className="h-4 w-4 mr-2" />
-                  Salvar
+                  {loading ? "Salvando..." : "Salvar"}
                 </Button>
-                <Button onClick={() => setIsEditing(false)} variant="outline" size="sm">
+                <Button 
+                  onClick={handleCancelEdit} 
+                  variant="outline" 
+                  size="sm"
+                  disabled={loading}
+                >
                   Cancelar
                 </Button>
               </div>
             </div>
           ) : (
             <>
-              <h1 className="text-2xl font-bold text-foreground">{userName}</h1>
-              <p className="text-muted-foreground">Membro desde Janeiro 2025</p>
-              <p className="text-sm text-muted-foreground">{userEmail}</p>
+              <h1 className="text-2xl font-bold text-foreground">{user.nome}</h1>
+              <p className="text-muted-foreground">
+                Membro desde {new Date(user.data_criacao || user.created_at).toLocaleDateString('pt-BR', { 
+                  month: 'long', 
+                  year: 'numeric' 
+                })}
+              </p>
+              <p className="text-sm text-muted-foreground">{user.email}</p>
             </>
           )}
         </motion.div>
@@ -174,6 +307,11 @@ export function PerfilScreen() {
           <CardContent className="space-y-4">
             {achievements.map((achievement, index) => {
               const Icon = achievement.icon
+              // Usar dados reais do usuário quando disponível
+              const value = achievement.label === "Dias consecutivos" 
+                ? `${user.chama || 0} dias`
+                : achievement.value
+                
               return (
                 <motion.div
                   key={achievement.label}
@@ -195,7 +333,7 @@ export function PerfilScreen() {
                     animate={{ scale: 1 }}
                     transition={{ duration: 0.3, delay: 0.8 + index * 0.1, type: "spring", bounce: 0.5 }}
                   >
-                    {achievement.value}
+                    {value}
                   </motion.span>
                 </motion.div>
               )
@@ -212,15 +350,6 @@ export function PerfilScreen() {
       >
         {menuItems.map((item, index) => {
           const Icon = item.icon
-          const handleClick = () => {
-            if (item.label === "Histórico de leituras") {
-              setShowHistory(true)
-            } else if (item.label === "Configurações") {
-              console.log("Abrir configurações")
-            } else if (item.label === "Sair") {
-              console.log("Fazer logout")
-            }
-          }
 
           return (
             <motion.div
@@ -233,7 +362,7 @@ export function PerfilScreen() {
             >
               <Button
                 variant="outline"
-                onClick={handleClick}
+                onClick={item.onClick}
                 className={`w-full h-12 justify-start bg-transparent hover:bg-secondary/20 transition-all duration-300 shadow-sm hover:shadow-md ${item.color}`}
               >
                 <motion.div

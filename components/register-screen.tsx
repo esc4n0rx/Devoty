@@ -1,3 +1,4 @@
+// components/register-screen.tsx
 "use client"
 
 import type React from "react"
@@ -6,18 +7,22 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ArrowLeft, Mail, Phone, CheckCircle } from "lucide-react"
+import { ArrowLeft, Mail, Phone, CheckCircle, AlertTriangle } from "lucide-react"
 import { motion } from "framer-motion"
+import { useAuth } from "@/hooks/use-auth"
+import { useToast } from "@/hooks/use-toast"
 
 interface RegisterScreenProps {
   onBack: () => void
   onComplete: () => void
+  onLoginRedirect: () => void
 }
 
 type RegisterStep = "email" | "details"
 
-export function RegisterScreen({ onBack, onComplete }: RegisterScreenProps) {
+export function RegisterScreen({ onBack, onComplete, onLoginRedirect }: RegisterScreenProps) {
   const [step, setStep] = useState<RegisterStep>("email")
+  const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     email: "",
     name: "",
@@ -26,6 +31,9 @@ export function RegisterScreen({ onBack, onComplete }: RegisterScreenProps) {
     acceptedTerms: false,
   })
 
+  const { register } = useAuth()
+  const { toast } = useToast()
+
   const handleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (formData.email && formData.acceptedTerms) {
@@ -33,17 +41,57 @@ export function RegisterScreen({ onBack, onComplete }: RegisterScreenProps) {
     }
   }
 
-  const handleDetailsSubmit = (e: React.FormEvent) => {
+  const handleDetailsSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (formData.name && formData.password && formData.age) {
-      console.log("Registration completed:", formData)
-      onComplete()
+    if (!formData.name || !formData.password || !formData.age) return
+
+    setLoading(true)
+    try {
+      const response = await register({
+        nome: formData.name,
+        email: formData.email,
+        senha: formData.password,
+        idade: parseInt(formData.age),
+      })
+
+      if (response.success) {
+        toast({
+          title: "Conta criada!",
+          description: response.message,
+        })
+        onComplete()
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Erro ao criar conta"
+      
+      // Se email já existe, mostrar aviso e redirecionar para login
+      if (errorMessage.includes("já cadastrado")) {
+        toast({
+          title: "Email já cadastrado",
+          description: "Este email já possui uma conta. Redirecionando para o login...",
+          variant: "default",
+        })
+        
+        setTimeout(() => {
+          onLoginRedirect()
+        }, 2000)
+      } else {
+        toast({
+          title: "Erro",
+          description: errorMessage,
+          variant: "destructive",
+        })
+      }
+    } finally {
+      setLoading(false)
     }
   }
 
   const handleSocialLogin = (provider: string) => {
-    console.log(`Login with ${provider}`)
-    // TODO: Implement social login
+    toast({
+      title: "Em breve",
+      description: `Login com ${provider} será implementado em breve`,
+    })
   }
 
   if (step === "email") {
@@ -184,144 +232,154 @@ export function RegisterScreen({ onBack, onComplete }: RegisterScreenProps) {
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ duration: 0.5, delay: 1.1 + index * 0.1 }}
                   whileHover={{ scale: 1.02, y: -2 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full h-12 text-base font-medium bg-transparent hover:bg-secondary/20 transition-all duration-300 shadow-sm hover:shadow-md"
-                    onClick={() => handleSocialLogin(social.provider)}
-                  >
-                    {social.provider === "Facebook" ? (
-                      <div className="h-5 w-5 mr-2 bg-blue-600 rounded text-white flex items-center justify-center text-xs font-bold">
-                        f
-                      </div>
-                    ) : (
-                      social.icon && <social.icon className="h-5 w-5 mr-2" />
-                    )}
-                    {social.provider}
-                  </Button>
-                </motion.div>
-              ))}
-            </motion.div>
-          </div>
-        </div>
-      </motion.div>
-    )
-  }
+                 whileTap={{ scale: 0.98 }}
+               >
+                 <Button
+                   type="button"
+                   variant="outline"
+                   className="w-full h-12 text-base font-medium bg-transparent hover:bg-secondary/20 transition-all duration-300 shadow-sm hover:shadow-md"
+                   onClick={() => handleSocialLogin(social.provider)}
+                 >
+                   {social.provider === "Facebook" ? (
+                     <div className="h-5 w-5 mr-2 bg-blue-600 rounded text-white flex items-center justify-center text-xs font-bold">
+                       f
+                     </div>
+                   ) : (
+                     social.icon && <social.icon className="h-5 w-5 mr-2" />
+                   )}
+                   {social.provider}
+                 </Button>
+               </motion.div>
+             ))}
+           </motion.div>
+         </div>
+       </div>
+     </motion.div>
+   )
+ }
 
-  return (
-    <motion.div
-      className="min-h-screen bg-background flex flex-col"
-      initial={{ x: 300, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: -300, opacity: 0 }}
-      transition={{ duration: 0.4, ease: "easeInOut" }}
-    >
-      <motion.div
-        className="flex items-center justify-between p-6"
-        initial={{ y: -50, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-      >
-        <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-          <Button variant="ghost" size="icon" onClick={() => setStep("email")} className="h-10 w-10">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        </motion.div>
-        <h1 className="text-lg font-semibold">Finalizar cadastro</h1>
-        <div className="w-10" />
-      </motion.div>
+ return (
+   <motion.div
+     className="min-h-screen bg-background flex flex-col"
+     initial={{ x: 300, opacity: 0 }}
+     animate={{ x: 0, opacity: 1 }}
+     exit={{ x: -300, opacity: 0 }}
+     transition={{ duration: 0.4, ease: "easeInOut" }}
+   >
+     <motion.div
+       className="flex items-center justify-between p-6"
+       initial={{ y: -50, opacity: 0 }}
+       animate={{ y: 0, opacity: 1 }}
+       transition={{ duration: 0.5, ease: "easeOut" }}
+     >
+       <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+         <Button variant="ghost" size="icon" onClick={() => setStep("email")} className="h-10 w-10">
+           <ArrowLeft className="h-5 w-5" />
+         </Button>
+       </motion.div>
+       <h1 className="text-lg font-semibold">Finalizar cadastro</h1>
+       <div className="w-10" />
+     </motion.div>
 
-      <div className="flex-1 px-6 py-8">
-        <div className="max-w-md mx-auto space-y-8">
-          <motion.div
-            className="text-center space-y-2"
-            initial={{ y: 30, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            <h2 className="text-2xl font-bold text-foreground">Quase lá!</h2>
-            <p className="text-muted-foreground">Precisamos de mais algumas informações</p>
-          </motion.div>
+     <div className="flex-1 px-6 py-8">
+       <div className="max-w-md mx-auto space-y-8">
+         <motion.div
+           className="text-center space-y-2"
+           initial={{ y: 30, opacity: 0 }}
+           animate={{ y: 0, opacity: 1 }}
+           transition={{ duration: 0.6, delay: 0.2 }}
+         >
+           <h2 className="text-2xl font-bold text-foreground">Quase lá!</h2>
+           <p className="text-muted-foreground">Precisamos de mais algumas informações</p>
+         </motion.div>
 
-          <motion.form
-            onSubmit={handleDetailsSubmit}
-            className="space-y-6"
-            initial={{ y: 50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-          >
-            {[
-              {
-                id: "name",
-                label: "Nome completo",
-                type: "text",
-                placeholder: "Seu nome",
-                value: formData.name,
-                key: "name",
-              },
-              {
-                id: "password",
-                label: "Senha",
-                type: "password",
-                placeholder: "Crie uma senha segura",
-                value: formData.password,
-                key: "password",
-              },
-              { id: "age", label: "Idade", type: "number", placeholder: "Sua idade", value: formData.age, key: "age" },
-            ].map((field, index) => (
-              <motion.div
-                key={field.id}
-                className="space-y-2"
-                initial={{ x: -30, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.6 + index * 0.1 }}
-              >
-                <label htmlFor={field.id} className="text-sm font-medium text-foreground">
-                  {field.label}
-                </label>
-                <motion.div whileFocus={{ scale: 1.02 }} transition={{ duration: 0.2 }}>
-                  <Input
-                    id={field.id}
-                    type={field.type}
-                    placeholder={field.placeholder}
-                    value={field.value}
-                    onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })}
-                    required
-                    {...(field.type === "number" && { min: "13", max: "120" })}
-                    className="transition-all duration-300 focus:shadow-lg"
-                  />
-                </motion.div>
-              </motion.div>
-            ))}
+         <motion.form
+           onSubmit={handleDetailsSubmit}
+           className="space-y-6"
+           initial={{ y: 50, opacity: 0 }}
+           animate={{ y: 0, opacity: 1 }}
+           transition={{ duration: 0.6, delay: 0.4 }}
+         >
+           {[
+             {
+               id: "name",
+               label: "Nome completo",
+               type: "text",
+               placeholder: "Seu nome",
+               value: formData.name,
+               key: "name",
+             },
+             {
+               id: "password",
+               label: "Senha",
+               type: "password",
+               placeholder: "Crie uma senha segura (mín. 6 caracteres)",
+               value: formData.password,
+               key: "password",
+             },
+             { 
+               id: "age", 
+               label: "Idade", 
+               type: "number", 
+               placeholder: "Sua idade", 
+               value: formData.age, 
+               key: "age" 
+             },
+           ].map((field, index) => (
+             <motion.div
+               key={field.id}
+               className="space-y-2"
+               initial={{ x: -30, opacity: 0 }}
+               animate={{ x: 0, opacity: 1 }}
+               transition={{ duration: 0.5, delay: 0.6 + index * 0.1 }}
+             >
+               <label htmlFor={field.id} className="text-sm font-medium text-foreground">
+                 {field.label}
+               </label>
+               <motion.div whileFocus={{ scale: 1.02 }} transition={{ duration: 0.2 }}>
+                 <Input
+                   id={field.id}
+                   type={field.type}
+                   placeholder={field.placeholder}
+                   value={field.value}
+                   onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })}
+                   required
+                   {...(field.type === "number" && { min: "13", max: "120" })}
+                   className="transition-all duration-300 focus:shadow-lg"
+                   disabled={loading}
+                 />
+               </motion.div>
+             </motion.div>
+           ))}
 
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.9 }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Button
-                type="submit"
-                className="w-full h-12 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-300"
-                disabled={!formData.name || !formData.password || !formData.age}
-              >
-                <motion.span className="flex items-center gap-2">
-                  Criar conta
-                  <motion.div
-                    animate={{ rotate: [0, 360] }}
-                    transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
-                  >
-                    <CheckCircle className="h-4 w-4" />
-                  </motion.div>
-                </motion.span>
-              </Button>
-            </motion.div>
-          </motion.form>
-        </div>
-      </div>
-    </motion.div>
-  )
+           <motion.div
+             initial={{ y: 20, opacity: 0 }}
+             animate={{ y: 0, opacity: 1 }}
+             transition={{ duration: 0.5, delay: 0.9 }}
+             whileHover={{ scale: 1.02 }}
+             whileTap={{ scale: 0.98 }}
+           >
+             <Button
+               type="submit"
+               className="w-full h-12 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+               disabled={!formData.name || !formData.password || !formData.age || loading}
+             >
+               <motion.span className="flex items-center gap-2">
+                 {loading ? "Criando conta..." : "Criar conta"}
+                 {!loading && (
+                   <motion.div
+                     animate={{ rotate: [0, 360] }}
+                     transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
+                   >
+                     <CheckCircle className="h-4 w-4" />
+                   </motion.div>
+                 )}
+               </motion.span>
+             </Button>
+           </motion.div>
+         </motion.form>
+       </div>
+     </div>
+   </motion.div>
+ )
 }

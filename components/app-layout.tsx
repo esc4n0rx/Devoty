@@ -1,3 +1,4 @@
+// components/app-layout.tsx
 "use client"
 
 import type { ReactNode } from "react"
@@ -9,11 +10,9 @@ interface AppLayoutProps {
   children: ReactNode
   activeTab: string
   onTabChange: (tab: string) => void
-  streakCount?: number
-  userName?: string
 }
 
-export function AppLayout({ children, activeTab, onTabChange, streakCount = 7, userName }: AppLayoutProps) {
+export function AppLayout({ children, activeTab, onTabChange }: AppLayoutProps) {
   const handleProfileClick = () => {
     onTabChange("perfil")
   }
@@ -25,7 +24,7 @@ export function AppLayout({ children, activeTab, onTabChange, streakCount = 7, u
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
       >
-        <AppHeader userName={userName} streakCount={streakCount} onProfileClick={handleProfileClick} />
+        <AppHeader onProfileClick={handleProfileClick} />
       </motion.div>
 
       <div className="flex-1 pb-20 relative">
@@ -37,7 +36,7 @@ export function AppLayout({ children, activeTab, onTabChange, streakCount = 7, u
             exit={{ x: -300, opacity: 0 }}
             transition={{
               duration: 0.4,
-              ease: [0.25, 0.46, 0.45, 0.94], // Custom easing for smooth feel
+              ease: [0.25, 0.46, 0.45, 0.94],
             }}
             className="absolute inset-0"
           >
