@@ -18,6 +18,7 @@ const STATIC_URLS = [
 const API_URLS = [
   '/api/auth/profile',
   '/api/devocionais',
+  '/api/bible',
 ];
 
 // URLs que devem sempre vir da rede (sem cache)
