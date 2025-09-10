@@ -10,6 +10,7 @@ import { DevocionalReader } from "@/components/devocional-reader"
 import { CongratulationsModal } from "@/components/congratulations-modal"
 import { useDevocionais } from "@/hooks/use-devocionais"
 import { useAuth } from "@/hooks/use-auth"
+import { NextDevocionalCountdown } from "../next-devocional-countdown"
 
 export function HojeScreen() {
   const [showDevocional, setShowDevocional] = useState(false)
@@ -19,6 +20,8 @@ export function HojeScreen() {
     loadingAction, 
     showCongratulations,
     congratulationsData,
+    canGenerateToday, 
+    nextAvailable, 
     concluirDevocional, 
     gerarNovaDevocional,
     closeCongratulations
@@ -203,11 +206,11 @@ export function HojeScreen() {
                   >
                     <Button
                       onClick={gerarNovaDevocional}
-                      disabled={loading}
+                      disabled={loading || !canGenerateToday}
                       className="w-full h-12 bg-accent hover:bg-accent/90 text-accent-foreground shadow-lg hover:shadow-xl transition-all duration-300"
                     >
                       <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                      {loading ? 'Gerando...' : 'Gerar Devocional'}
+                      {loading ? 'Gerando...' : !canGenerateToday ? 'Já gerada hoje' : 'Gerar Devocional'}
                     </Button>
                   </motion.div>
                 </CardContent>
@@ -244,6 +247,10 @@ export function HojeScreen() {
           </motion.div>
         </div>
       </div>
+
+    {!devocionalDoDia && !canGenerateToday && nextAvailable && (
+      <NextDevocionalCountdown nextAvailable={nextAvailable} />
+    )}
 
       {/* Modal de Parabéns Global - fora do DevocionalReader */}
       {showCongratulations && congratulationsData && !showDevocional && (

@@ -18,6 +18,9 @@ export interface DevocionalResponse {
   message: string
   devocional?: Devocional
   devocionais?: Devocional[]
+  nextAvailable?: string      
+  dailyLimitReached?: boolean 
+  canGenerate?: boolean    
 }
 
 export interface ConcluirDevocionalData {

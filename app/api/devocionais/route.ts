@@ -1,4 +1,4 @@
-// app/api/devocionais/route.ts
+// app/api/devocionais/hoje/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import jwt from 'jsonwebtoken'
@@ -28,60 +28,45 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const { searchParams } = new URL(request.url)
-    const historico = searchParams.get('historico')
-
     const supabase = createClient()
 
-    if (historico === 'true') {
-      // Buscar todas as devocionais do usuário (histórico)
-      const { data: devocionais, error } = await supabase
-        .from('devocionais')
-        .select('*')
-        .eq('user_id', auth.userId)
-        .order('data_criacao', { ascending: false })
+    // Buscar devocional de hoje (desde 00:00 de hoje)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    const { data: devocional, error } = await supabase
+      .from('devocionais')
+      .select('*')
+      .eq('user_id', auth.userId)
+      .gte('data_criacao', today.toISOString())
+      .order('data_criacao', { ascending: false })
+      .limit(1)
+      .single()
 
-      if (error) {
-        console.error('Erro ao buscar devocionais:', error)
-        return NextResponse.json(
-          { success: false, message: 'Erro ao buscar devocionais' },
-          { status: 500 }
-        )
-      }
+    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+      console.error('Erro ao buscar devocional do dia:', error)
+      return NextResponse.json(
+        { success: false, message: 'Erro ao buscar devocional' },
+        { status: 500 }
+      )
+    }
 
+    if (!devocional) {
       return NextResponse.json({
         success: true,
-        devocionais: devocionais || [],
-      })
-    } else {
-      // Buscar devocional do dia (hoje)
-      const hoje = new Date().toISOString().split('T')[0]
-      
-      const { data: devocionalDoDia, error } = await supabase
-        .from('devocionais')
-        .select('*')
-        .eq('user_id', auth.userId)
-        .gte('data_criacao', `${hoje}T00:00:00.000Z`)
-        .lte('data_criacao', `${hoje}T23:59:59.999Z`)
-        .order('data_criacao', { ascending: false })
-        .limit(1)
-        .single()
-
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-        console.error('Erro ao buscar devocional do dia:', error)
-        return NextResponse.json(
-          { success: false, message: 'Erro ao buscar devocional do dia' },
-          { status: 500 }
-        )
-      }
-
-      return NextResponse.json({
-        success: true,
-        devocional: devocionalDoDia || null,
+        message: 'Nenhuma devocional encontrada para hoje',
+        devocional: null,
+        canGenerate: true
       })
     }
+
+    return NextResponse.json({
+      success: true,
+      devocional,
+      canGenerate: false
+    })
   } catch (error) {
-    console.error('Erro na API de devocionais:', error)
+    console.error('Erro no endpoint devocional do dia:', error)
     return NextResponse.json(
       { success: false, message: 'Erro interno do servidor' },
       { status: 500 }

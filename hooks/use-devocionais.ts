@@ -1,7 +1,7 @@
 // hooks/use-devocionais.ts
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { devocionaisApi } from '@/lib/api/devocionais'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
@@ -17,6 +17,8 @@ export function useDevocionais() {
     chama: number
     titulo: string
   } | null>(null)
+  const [canGenerateToday, setCanGenerateToday] = useState(true)
+  const [nextAvailable, setNextAvailable] = useState<string | null>(null)
   
   const { user, checkAuth } = useAuth()
   const { toast } = useToast()
@@ -26,9 +28,14 @@ export function useDevocionais() {
       const response = await devocionaisApi.getDevocionalDoDia()
       if (response.success && response.devocional) {
         setDevocionalDoDia(response.devocional)
+        setCanGenerateToday(false) // Já tem devocional de hoje
+      } else {
+        setDevocionalDoDia(null)
+        setCanGenerateToday(true) // Pode gerar devocional
       }
     } catch (error) {
       console.error('Erro ao carregar devocional do dia:', error)
+      setCanGenerateToday(true)
     }
   }
 
@@ -143,23 +150,48 @@ export function useDevocionais() {
   }
 
   const gerarNovaDevocional = async () => {
+    if (!canGenerateToday) {
+      toast({
+        title: "Limite diário atingido",
+        description: "Você já gerou sua devocional de hoje. Volte amanhã!",
+        variant: "destructive"
+      })
+      return
+    }
+
     setLoading(true)
     try {
       const response = await devocionaisApi.gerarDevocional()
       
       if (response.success && response.devocional) {
         setDevocionalDoDia(response.devocional)
+        setCanGenerateToday(false)
+        if (response.nextAvailable) {
+          setNextAvailable(response.nextAvailable)
+        }
         toast({
-          title: "Nova devocional gerada!",
-          description: "Uma nova devocional foi criada para você.",
+          title: "Devocional de hoje gerada! ✨",
+          description: "Sua devocional diária está pronta para leitura.",
         })
       }
     } catch (error) {
-      toast({
-        title: "Erro",
-        description: error instanceof Error ? error.message : "Erro ao gerar devocional",
-        variant: "destructive",
-      })
+      const errorMsg = error instanceof Error ? error.message : 'Erro ao gerar devocional'
+      
+      // Verificar se é erro de limite diário
+      if (errorMsg.includes('já gerou') || errorMsg.includes('próxima estará disponível')) {
+        setCanGenerateToday(false)
+        toast({
+          title: "Devocional já gerada hoje! 😊",
+          description: errorMsg,
+          variant: "default"
+        })
+      } else {
+        toast({
+          title: "Erro",
+          description: errorMsg,
+          variant: "destructive",
+        })
+      }
     } finally {
       setLoading(false)
     }
@@ -170,6 +202,22 @@ export function useDevocionais() {
     setCongratulationsData(null)
   }
 
+  const checkCanGenerate = useCallback(() => {
+    if (!canGenerateToday && nextAvailable) {
+      const now = new Date()
+      const next = new Date(nextAvailable)
+      
+      if (now >= next) {
+        setCanGenerateToday(true)
+        setNextAvailable(null)
+        toast({
+          title: "Nova devocional disponível! 🌅",
+          description: "Você já pode gerar sua devocional de hoje!",
+        })
+      }
+    }
+  }, [canGenerateToday, nextAvailable, toast])
+
   useEffect(() => {
     if (user) {
       Promise.all([
@@ -179,6 +227,11 @@ export function useDevocionais() {
     }
   }, [user])
 
+  useEffect(() => {
+    const interval = setInterval(checkCanGenerate, 60000)
+    return () => clearInterval(interval)
+  }, [checkCanGenerate])
+
   return {
     devocionalDoDia,
     devocionais,
@@ -186,6 +239,8 @@ export function useDevocionais() {
     loadingAction,
     showCongratulations,
     congratulationsData,
+    canGenerateToday,
+    nextAvailable,
     concluirDevocional,
     favoritarDevocional,
     deletarDevocional,
