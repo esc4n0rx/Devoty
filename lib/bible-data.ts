@@ -1,5 +1,5 @@
 // lib/bible-data.ts
-import { bibleParser } from './bible-parser'
+import { optimizedBibleParser } from './bible-parser'
 import type { BibleData, BibleBook, BibleChapter, BibleSettings } from '@/types/bible'
 
 class BibleDataManager {
@@ -16,7 +16,7 @@ class BibleDataManager {
       }
     }
 
-    const data = await bibleParser.loadBible(version)
+    const data = await optimizedBibleParser.loadBooksIndex(version)
     this.cache.set(cacheKey, {
       data,
       timestamp: Date.now()
@@ -39,7 +39,7 @@ class BibleDataManager {
       }
     }
 
-    const data = await bibleParser.loadChapter(version, bookAbbrev, chapterNum)
+    const data = await optimizedBibleParser.loadChapter(version, bookAbbrev, chapterNum)
     this.cache.set(cacheKey, {
       data,
       timestamp: Date.now()
@@ -49,7 +49,7 @@ class BibleDataManager {
   }
 
   async searchVerses(version: 'acf' | 'nvi', query: string, limit?: number) {
-    return bibleParser.searchVerses(version, query, limit)
+    return optimizedBibleParser.searchVerses(version, query, limit)
   }
 
   getDefaultSettings(): Omit<BibleSettings, 'id' | 'user_id' | 'created_at' | 'updated_at'> {

@@ -4,23 +4,24 @@
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 import { bibleDataManager } from '@/lib/bible-data'
-import type { 
-  BibleData, 
-  BibleChapter, 
-  BibleSettings, 
-  BibleBookmark, 
-  BibleSearchResult 
-} from '@/types/bible'
+import type { BibleData, BibleChapter, BibleSettings } from '@/types/bible'
 
 export function useBible() {
   const [bibleData, setBibleData] = useState<BibleData | null>(null)
   const [currentChapter, setCurrentChapter] = useState<BibleChapter | null>(null)
   const [settings, setSettings] = useState<BibleSettings | null>(null)
-  const [bookmarks, setBookmarks] = useState<BibleBookmark[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchResults, setSearchResults] = useState<BibleSearchResult[]>([])
+  const [loading, setLoading] = useState(false)
+  const [searchResults, setSearchResults] = useState<any[]>([])
 
-  // Carregar configurações iniciais
+  // Configurações padrão
+  const defaultSettings: Partial<BibleSettings> = {
+    bible_version: 'acf',
+    current_book: 'gn',
+    current_chapter: 1,
+    font_size: 16
+  }
+
+  // Carregar configurações
   const loadSettings = useCallback(async () => {
     try {
       const response = await fetch('/api/bible/settings')
@@ -28,36 +29,25 @@ export function useBible() {
         const data = await response.json()
         setSettings(data.settings)
       } else {
-        // Usar configurações padrão
-        const defaultSettings = bibleDataManager.getDefaultSettings()
-        setSettings({
-          ...defaultSettings,
-          id: '',
-          user_id: '',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
+        setSettings(defaultSettings as BibleSettings)
       }
     } catch (error) {
-      console.error('Error loading settings:', error)
+      setSettings(defaultSettings as BibleSettings)
     }
   }, [])
 
-  // Carregar dados da Bíblia
+  // Carregar índice dos livros (muito rápido)
   const loadBibleData = useCallback(async (version: 'acf' | 'nvi' = 'acf') => {
     try {
-      setLoading(true)
       const data = await bibleDataManager.getBibleData(version)
       setBibleData(data)
     } catch (error) {
       console.error('Error loading Bible data:', error)
-      toast.error('Erro ao carregar a Bíblia')
-    } finally {
-      setLoading(false)
+      toast.error('Erro ao carregar índice da Bíblia')
     }
   }, [])
 
-  // Carregar capítulo
+  // Carregar capítulo específico
   const loadChapter = useCallback(async (
     version: 'acf' | 'nvi',
     bookAbbrev: string,
@@ -69,7 +59,7 @@ export function useBible() {
       setCurrentChapter(chapter)
       
       // Atualizar configurações
-      await updateSettings({
+      updateSettings({
         current_book: bookAbbrev,
         current_chapter: chapterNum
       })
@@ -99,7 +89,7 @@ export function useBible() {
     }
   }
 
-  // Navegar para próximo capítulo
+  // Navegação entre capítulos
   const nextChapter = useCallback(() => {
     if (!bibleData || !settings) return
 
@@ -114,7 +104,6 @@ export function useBible() {
     }
   }, [bibleData, settings, loadChapter])
 
-  // Navegar para capítulo anterior
   const previousChapter = useCallback(() => {
     if (!bibleData || !settings) return
 
@@ -137,68 +126,19 @@ export function useBible() {
     }
 
     try {
-      setLoading(true)
       const results = await bibleDataManager.searchVerses(
         settings.bible_version,
-        query.trim()
+        query.trim(),
+        50
       )
       setSearchResults(results)
     } catch (error) {
       console.error('Error searching verses:', error)
       toast.error('Erro na busca')
-    } finally {
-      setLoading(false)
     }
   }
 
-  // Adicionar marcação
-  const addBookmark = async (
-    bookAbbrev: string,
-    chapter: number,
-    verse: number,
-    text: string,
-    note?: string,
-    color: string = 'yellow'
-  ) => {
-    try {
-      const response = await fetch('/api/bible/bookmarks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          book_abbrev: bookAbbrev,
-          chapter,
-          verse,
-          text,
-          note,
-          color
-        })
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setBookmarks(prev => [...prev, data.bookmark])
-        toast.success('Versículo marcado!')
-      }
-    } catch (error) {
-      console.error('Error adding bookmark:', error)
-      toast.error('Erro ao marcar versículo')
-    }
-  }
-
-  // Carregar marcações
-  const loadBookmarks = async () => {
-    try {
-      const response = await fetch('/api/bible/bookmarks')
-      if (response.ok) {
-        const data = await response.json()
-        setBookmarks(data.bookmarks || [])
-      }
-    } catch (error) {
-      console.error('Error loading bookmarks:', error)
-    }
-  }
-
-  // Efeitos
+  // Efeitos de inicialização
   useEffect(() => {
     loadSettings()
   }, [loadSettings])
@@ -206,7 +146,6 @@ export function useBible() {
   useEffect(() => {
     if (settings) {
       loadBibleData(settings.bible_version)
-      loadBookmarks()
     }
   }, [settings, loadBibleData])
 
@@ -220,14 +159,12 @@ export function useBible() {
     bibleData,
     currentChapter,
     settings,
-    bookmarks,
     searchResults,
     loading,
     loadChapter,
     nextChapter,
     previousChapter,
     searchVerses,
-    addBookmark,
     updateSettings,
     setSearchResults
   }

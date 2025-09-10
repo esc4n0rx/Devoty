@@ -1,10 +1,11 @@
 // lib/bible-parser.ts
 import { XMLParser } from 'fast-xml-parser'
-import type { BibleData, BibleBook, BibleChapter, BibleVerse } from '@/types/bible'
+import { bibleCache } from './bible-cache'
+import type { BibleData, BibleBook, BibleChapter } from '@/types/bible'
 
-class BibleParser {
+class OptimizedBibleParser {
   private parser: XMLParser
-  private bibleData: Map<string, BibleData> = new Map()
+  private booksIndex = new Map<string, { name: string; abbrev: string; chapters: number }>()
 
   constructor() {
     this.parser = new XMLParser({
@@ -12,53 +13,47 @@ class BibleParser {
       attributeNamePrefix: '',
       parseAttributeValue: true,
       trimValues: true,
+      processEntities: true,
     })
   }
 
-  async loadBible(version: 'acf' | 'nvi' = 'acf'): Promise<BibleData> {
-    // Verificar cache primeiro
-    if (this.bibleData.has(version)) {
-      return this.bibleData.get(version)!
-    }
+  async loadBooksIndex(version: 'acf' | 'nvi' = 'acf'): Promise<BibleData> {
+    const cacheKey = `books-index-${version}`
+    const cached = bibleCache.get<BibleData>(cacheKey)
+    
+    if (cached) return cached
 
     try {
       const response = await fetch(`/bible/${version}.min.xml`)
-      if (!response.ok) {
-        throw new Error(`Failed to load Bible ${version}`)
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+
+      const text = await response.text()
+      
+      // Parse apenas a estrutura dos livros
+      const booksRegex = /<book\s+name="([^"]+)"\s+abbrev="([^"]+)"\s+chapters="(\d+)"/g
+      const books: BibleBook[] = []
+      const bookMap = new Map<string, BibleBook>()
+
+      let match: RegExpExecArray | null
+      while ((match = booksRegex.exec(text)) !== null) {
+        const book: BibleBook = {
+          name: match[1],
+          abbrev: match[2],
+          chapters: parseInt(match[3])
+        }
+        books.push(book)
+        bookMap.set(book.abbrev, book)
+        this.booksIndex.set(book.abbrev, book)
       }
 
-      const xmlText = await response.text()
-      const result = this.parser.parse(xmlText)
+      const data = { books, bookMap }
+      bibleCache.set(cacheKey, data)
+      return data
 
-      const bibleData = this.processBibleXML(result)
-      this.bibleData.set(version, bibleData)
-
-      return bibleData
     } catch (error) {
-      console.error('Error loading Bible:', error)
-      throw new Error(`Failed to parse Bible ${version}`)
+      console.error('Error loading books index:', error)
+      throw new Error(`Failed to load Bible index`)
     }
-  }
-
-  private processBibleXML(xml: any): BibleData {
-    const books: BibleBook[] = []
-    const bookMap = new Map<string, BibleBook>()
-
-    const booksArray = Array.isArray(xml.bible.book) ? xml.bible.book : [xml.bible.book]
-
-    for (const bookXml of booksArray) {
-      const book: BibleBook = {
-        name: bookXml.name,
-        abbrev: bookXml.abbrev,
-        chapters: parseInt(bookXml.chapters),
-        chaptersData: new Map()
-      }
-
-      books.push(book)
-      bookMap.set(book.abbrev, book)
-    }
-
-    return { books, bookMap }
   }
 
   async loadChapter(
@@ -66,124 +61,146 @@ class BibleParser {
     bookAbbrev: string,
     chapterNum: number
   ): Promise<BibleChapter> {
-    const bibleData = await this.loadBible(version)
-    const book = bibleData.bookMap.get(bookAbbrev)
+    const cacheKey = `chapter-${version}-${bookAbbrev}-${chapterNum}`
+    const cached = bibleCache.get<BibleChapter>(cacheKey)
+    
+    if (cached) return cached
 
-    if (!book) {
-      throw new Error(`Book ${bookAbbrev} not found`)
-    }
-
-    // Verificar cache do capítulo
-    if (book.chaptersData?.has(chapterNum)) {
-      return book.chaptersData.get(chapterNum)!
-    }
-
-    // Carregar capítulo sob demanda
     try {
       const response = await fetch(`/bible/${version}.min.xml`)
-      const xmlText = await response.text()
-      const result = this.parser.parse(xmlText)
+      const text = await response.text()
 
-      const chapter = this.findChapterInXML(result, bookAbbrev, chapterNum)
+      // Encontrar o livro
+      const bookStartPattern = `<book name="[^"]*" abbrev="${bookAbbrev}" chapters="\\d+">`
+      const bookStartRegex = new RegExp(bookStartPattern)
+      const bookStartMatch = text.search(bookStartRegex)
       
-      if (!book.chaptersData) {
-        book.chaptersData = new Map()
+      if (bookStartMatch === -1) {
+        throw new Error(`Book ${bookAbbrev} not found`)
       }
-      book.chaptersData.set(chapterNum, chapter)
 
+      // Encontrar o final do livro
+      const bookEndIndex = text.indexOf('</book>', bookStartMatch)
+      if (bookEndIndex === -1) {
+        throw new Error(`Book ${bookAbbrev} end not found`)
+      }
+
+      const bookContent = text.substring(bookStartMatch, bookEndIndex)
+
+      // Encontrar o capítulo específico
+      const chapterPattern = `<c n="${chapterNum}">`
+      const chapterStartIndex = bookContent.indexOf(chapterPattern)
+      
+      if (chapterStartIndex === -1) {
+        throw new Error(`Chapter ${chapterNum} not found in book ${bookAbbrev}`)
+      }
+
+      const chapterEndIndex = bookContent.indexOf('</c>', chapterStartIndex)
+      if (chapterEndIndex === -1) {
+        throw new Error(`Chapter ${chapterNum} end not found`)
+      }
+
+      const chapterContent = bookContent.substring(chapterStartIndex, chapterEndIndex)
+
+      // Extrair versículos usando regex mais simples
+      const verses = []
+      const versePattern = /<v n="(\d+)">([^<]*)<\/v>/g
+      
+      let verseMatch: RegExpExecArray | null
+      while ((verseMatch = versePattern.exec(chapterContent)) !== null) {
+        verses.push({
+          n: parseInt(verseMatch[1]),
+          text: verseMatch[2].trim()
+        })
+      }
+
+      // Se não encontrou versículos com a regex simples, tentar uma mais robusta
+      if (verses.length === 0) {
+        const alternativePattern = /<v n="(\d+)"[^>]*>(.*?)<\/v>/g
+        let altMatch: RegExpExecArray | null
+        while ((altMatch = alternativePattern.exec(chapterContent)) !== null) {
+          const cleanText = altMatch[2].replace(/<[^>]*>/g, '').trim()
+          if (cleanText) {
+            verses.push({
+              n: parseInt(altMatch[1]),
+              text: cleanText
+            })
+          }
+        }
+      }
+
+      if (verses.length === 0) {
+        throw new Error(`No verses found in chapter ${chapterNum} of ${bookAbbrev}`)
+      }
+
+      const chapter = { n: chapterNum, verses }
+      bibleCache.set(cacheKey, chapter)
       return chapter
+
     } catch (error) {
       console.error('Error loading chapter:', error)
       throw new Error(`Failed to load chapter ${chapterNum} of ${bookAbbrev}`)
     }
   }
 
-  private findChapterInXML(xml: any, bookAbbrev: string, chapterNum: number): BibleChapter {
-    const booksArray = Array.isArray(xml.bible.book) ? xml.bible.book : [xml.bible.book]
+  async searchVerses(version: 'acf' | 'nvi', query: string, limit = 50) {
+    const cacheKey = `search-${version}-${query}-${limit}`
+    const cached = bibleCache.get<any[]>(cacheKey)
     
-    for (const bookXml of booksArray) {
-      if (bookXml.abbrev === bookAbbrev) {
-        const chaptersArray = Array.isArray(bookXml.c) ? bookXml.c : [bookXml.c]
-        
-        for (const chapterXml of chaptersArray) {
-          if (parseInt(chapterXml.n) === chapterNum) {
-            const verses: BibleVerse[] = []
-            const versesArray = Array.isArray(chapterXml.v) ? chapterXml.v : [chapterXml.v]
-            
-            for (const verseXml of versesArray) {
-              verses.push({
-                n: parseInt(verseXml.n),
-                text: verseXml['#text'] || verseXml
-              })
-            }
+    if (cached) return cached
 
-            return {
-              n: chapterNum,
-              verses
-            }
-          }
-        }
-      }
-    }
-
-    throw new Error(`Chapter ${chapterNum} not found in book ${bookAbbrev}`)
-  }
-
-  async searchVerses(
-    version: 'acf' | 'nvi',
-    query: string,
-    limit: number = 50
-  ): Promise<Array<{
-    book_abbrev: string
-    book_name: string
-    chapter: number
-    verse: number
-    text: string
-  }>> {
     try {
       const response = await fetch(`/bible/${version}.min.xml`)
-      const xmlText = await response.text()
-      const result = this.parser.parse(xmlText)
+      const text = await response.text()
 
-      const results: Array<{
-        book_abbrev: string
-        book_name: string
-        chapter: number
-        verse: number
-        text: string
-      }> = []
-
+      const results = []
       const queryLower = query.toLowerCase()
-      const booksArray = Array.isArray(result.bible.book) ? result.bible.book : [result.bible.book]
 
-      for (const book of booksArray) {
+      // Usar uma abordagem mais simples para busca
+      const lines = text.split('\n')
+      let currentBook = ''
+      let currentBookAbbrev = ''
+      let currentChapter = 0
+
+      for (const line of lines) {
         if (results.length >= limit) break
 
-        const chaptersArray = Array.isArray(book.c) ? book.c : [book.c]
-        
-        for (const chapter of chaptersArray) {
-          if (results.length >= limit) break
+        // Detectar início de livro
+        const bookMatch = line.match(/<book name="([^"]+)" abbrev="([^"]+)"/)
+        if (bookMatch) {
+          currentBook = bookMatch[1]
+          currentBookAbbrev = bookMatch[2]
+          continue
+        }
 
-          const versesArray = Array.isArray(chapter.v) ? chapter.v : [chapter.v]
+        // Detectar capítulo
+        const chapterMatch = line.match(/<c n="(\d+)">/)
+        if (chapterMatch) {
+          currentChapter = parseInt(chapterMatch[1])
+          continue
+        }
+
+        // Detectar versículo
+        const verseMatch = line.match(/<v n="(\d+)">(.*?)<\/v>/)
+        if (verseMatch && currentBook && currentChapter) {
+          const verseNum = parseInt(verseMatch[1])
+          const verseText = verseMatch[2].replace(/<[^>]*>/g, '').trim()
           
-          for (const verse of versesArray) {
-            if (results.length >= limit) break
-
-            const text = verse['#text'] || verse
-            if (text.toLowerCase().includes(queryLower)) {
-              results.push({
-                book_abbrev: book.abbrev,
-                book_name: book.name,
-                chapter: parseInt(chapter.n),
-                verse: parseInt(verse.n),
-                text
-              })
-            }
+          if (verseText.toLowerCase().includes(queryLower)) {
+            results.push({
+              book_name: currentBook,
+              book_abbrev: currentBookAbbrev,
+              chapter: currentChapter,
+              verse: verseNum,
+              text: verseText
+            })
           }
         }
       }
 
+      bibleCache.set(cacheKey, results)
       return results
+
     } catch (error) {
       console.error('Error searching verses:', error)
       return []
@@ -191,4 +208,4 @@ class BibleParser {
   }
 }
 
-export const bibleParser = new BibleParser()
+export const optimizedBibleParser = new OptimizedBibleParser()
