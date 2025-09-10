@@ -5,12 +5,13 @@ import { GeistMono } from 'geist/font/mono'
 import { Analytics } from '@vercel/analytics/next'
 import { AuthProvider } from '@/components/auth-provider'
 import { Toaster } from '@/components/ui/toaster'
+import { AppUpdater } from '@/components/app-updater'
 import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Devoty - Devocionais Diários',
   description: 'Fortaleça sua caminhada espiritual com devocionais diários, reflexões bíblicas e espaço para registrar sua jornada.',
-  generator: 'v0.app',
+  generator: 'Paulo Oliveira',
   manifest: '/manifest.json',
   keywords: ['devocional', 'bíblia', 'fé', 'cristianismo', 'espiritualidade'],
   authors: [{ name: 'Devoty Team' }],
@@ -74,28 +75,12 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192x192.png" />
         <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png" />
         <link rel="icon" type="image/png" sizes="512x512" href="/icon-512x512.png" />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js')
-                    .then(function(registration) {
-                      console.log('SW registered: ', registration);
-                    })
-                    .catch(function(registrationError) {
-                      console.log('SW registration failed: ', registrationError);
-                    });
-                });
-              }
-            `,
-          }}
-        />
       </head>
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
         <AuthProvider>
           {children}
           <Toaster />
+          <AppUpdater />
         </AuthProvider>
         <Analytics />
       </body>

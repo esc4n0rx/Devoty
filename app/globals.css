@@ -124,3 +124,28 @@
     @apply bg-background text-foreground;
   }
 }
+
+html, body, #__next {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Safe area para devices com notch */
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Garantir que o scroll funcione corretamente em mobile */
+body {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+}
+
+/* Reset de margens para componentes de card */
+.card-content-reset {
+  margin: 0 !important;
+  padding: 0 !important;
+}

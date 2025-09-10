@@ -1,6 +1,6 @@
+// types/auth.ts
 import { UpdateUserData, User } from "./user"
 
-// types/auth.ts
 export interface LoginCredentials {
   email: string
   password: string
@@ -38,4 +38,5 @@ export interface AuthContextType {
   logout: () => Promise<void>
   forgotPassword: (data: ForgotPasswordData) => Promise<AuthResponse>
   updateProfile: (data: UpdateUserData) => Promise<AuthResponse>
+  checkAuth: () => Promise<void> // Adicionar checkAuth
 }
