@@ -3,6 +3,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { gerarDevocionalIA } from '@/lib/groq'
 import jwt from 'jsonwebtoken'
+import { 
+  getBrazilianDateForDB, 
+  getBrazilianNextMidnight, 
+  isToday,
+  getBrazilianDateString 
+} from '@/lib/utils/timezone'
 
 async function getAuthenticatedUser(request: NextRequest) {
   const token = request.cookies.get('auth-token')?.value
@@ -19,22 +25,6 @@ async function getAuthenticatedUser(request: NextRequest) {
   }
 }
 
-function isToday(date: string): boolean {
-  const today = new Date()
-  const checkDate = new Date(date)
-  
-  return today.getFullYear() === checkDate.getFullYear() &&
-         today.getMonth() === checkDate.getMonth() &&
-         today.getDate() === checkDate.getDate()
-}
-
-function getNextMidnight(): Date {
-  const tomorrow = new Date()
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  tomorrow.setHours(0, 0, 0, 0)
-  return tomorrow
-}
-
 export async function POST(request: NextRequest) {
   try {
     const auth = await getAuthenticatedUser(request)
@@ -47,18 +37,20 @@ export async function POST(request: NextRequest) {
 
     const supabase = createClient()
 
-    // Verificar se já gerou devocional hoje
+    // Verificar se já gerou devocional hoje usando timezone brasileiro
+    const brazilianDateStart = getBrazilianDateForDB()
+    
     const { data: devocionalHoje, error: errorVerificacao } = await supabase
       .from('devocionais')
       .select('id, data_criacao')
       .eq('user_id', auth.userId)
-      .gte('data_criacao', new Date().toISOString().split('T')[0]) // Desde hoje 00:00
+      .gte('data_criacao', brazilianDateStart)
       .order('data_criacao', { ascending: false })
       .limit(1)
       .single()
 
     if (devocionalHoje && isToday(devocionalHoje.data_criacao)) {
-      const nextMidnight = getNextMidnight()
+      const nextMidnight = getBrazilianNextMidnight()
       const hoursUntilNext = Math.ceil((nextMidnight.getTime() - Date.now()) / (1000 * 60 * 60))
       
       return NextResponse.json({
@@ -111,7 +103,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Devocional de hoje gerada com sucesso!',
       devocional: novaDevocional,
-      nextAvailable: getNextMidnight().toISOString()
+      nextAvailable: getBrazilianNextMidnight().toISOString()
     })
   } catch (error) {
     console.error('Erro ao gerar devocional:', error)

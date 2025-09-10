@@ -1,7 +1,8 @@
-// app/api/devocionais/hoje/route.ts
+// app/api/devocionais/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import jwt from 'jsonwebtoken'
+import { getBrazilianDateForDB } from '@/lib/utils/timezone'
 
 async function getAuthenticatedUser(request: NextRequest) {
   const token = request.cookies.get('auth-token')?.value
@@ -29,16 +30,39 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = createClient()
+    const url = new URL(request.url)
+    const historico = url.searchParams.get('historico')
 
-    // Buscar devocional de hoje (desde 00:00 de hoje)
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    // Se for para buscar histórico, retornar todas as devocionais
+    if (historico === 'true') {
+      const { data: devocionais, error } = await supabase
+        .from('devocionais')
+        .select('*')
+        .eq('user_id', auth.userId)
+        .order('data_criacao', { ascending: false })
+
+      if (error) {
+        console.error('Erro ao buscar devocionais:', error)
+        return NextResponse.json(
+          { success: false, message: 'Erro ao buscar devocionais' },
+          { status: 500 }
+        )
+      }
+
+      return NextResponse.json({
+        success: true,
+        devocionais
+      })
+    }
+
+    // Buscar devocional de hoje usando timezone brasileiro
+    const brazilianDateStart = getBrazilianDateForDB()
     
     const { data: devocional, error } = await supabase
       .from('devocionais')
       .select('*')
       .eq('user_id', auth.userId)
-      .gte('data_criacao', today.toISOString())
+      .gte('data_criacao', brazilianDateStart)
       .order('data_criacao', { ascending: false })
       .limit(1)
       .single()
