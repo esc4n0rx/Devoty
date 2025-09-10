@@ -1,5 +1,5 @@
 // public/sw.js
-const CACHE_VERSION = 'v1.0.5'; // Incremente esta versão a cada deploy
+const CACHE_VERSION = 'v1.0.6'; // Incremente esta versão a cada deploy
 const CACHE_NAME = `devoty-${CACHE_VERSION}`;
 const DATA_CACHE_NAME = `devoty-data-${CACHE_VERSION}`;
 
@@ -19,6 +19,7 @@ const API_URLS = [
   '/api/auth/profile',
   '/api/devocionais',
   '/api/bible',
+  '/api/diary',
 ];
 
 // URLs que devem sempre vir da rede (sem cache)
