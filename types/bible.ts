@@ -2,6 +2,7 @@
 export interface BibleVerse {
   n: number
   text: string
+  highlightColor?: string
 }
 
 export interface BibleChapter {

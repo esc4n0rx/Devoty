@@ -26,7 +26,8 @@ export function BibliaScreen() {
    settings,
    loading,
    updateSettings,
-   searchVerses
+   searchVerses,
+   saveBookmark
  } = useBible()
  
  const [showSearch, setShowSearch] = useState(false)
@@ -71,9 +72,9 @@ export function BibliaScreen() {
  }
 
  return (
-   <div className="min-h-screen bg-background">
+   <div className="flex flex-col h-screen bg-background">
      {/* Header com controles */}
-     <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
+     <div className="flex-shrink-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border">
        <div className="px-4 py-3 space-y-3">
          {/* Linha 1: Saudação */}
          <motion.div
@@ -138,44 +139,47 @@ export function BibliaScreen() {
        </div>
      </div>
 
-     {/* Conteúdo principal */}
-     <AnimatePresence mode="wait">
-       {currentChapter && settings ? (
-         <motion.div
-           key={`${settings.current_book}-${settings.current_chapter}`}
-           initial={{ opacity: 0, y: 20 }}
-           animate={{ opacity: 1, y: 0 }}
-           exit={{ opacity: 0, y: -20 }}
-           transition={{ duration: 0.3 }}
-         >
-           <BibleReader
+     {/* Conteúdo principal scrollável */}
+     <div className="flex-1 overflow-y-auto">
+       <AnimatePresence mode="wait">
+         {currentChapter && settings ? (
+           <motion.div
+             key={`${settings.current_book}-${settings.current_chapter}`}
+             initial={{ opacity: 0, y: 20 }}
+             animate={{ opacity: 1, y: 0 }}
+             exit={{ opacity: 0, y: -20 }}
+             transition={{ duration: 0.3 }}
+           >
+             <BibleReader
              chapter={currentChapter}
              bookName={getCurrentBookName()}
              bookAbbrev={settings.current_book}
              fontSize={settings.font_size}
              version={settings.bible_version}
+             saveBookmark={saveBookmark}
            />
-         </motion.div>
-       ) : !loading ? (
-         <motion.div
-           initial={{ opacity: 0 }}
-           animate={{ opacity: 1 }}
-           className="flex items-center justify-center min-h-[50vh]"
-         >
-           <div className="text-center space-y-4">
-             <div className="text-6xl">📖</div>
-             <div>
-               <h3 className="text-lg font-semibold text-foreground mb-2">
-                 Bem-vindo à Bíblia
-               </h3>
-               <p className="text-muted-foreground mb-4">
-                 Toque no controle abaixo para escolher um livro
-               </p>
+           </motion.div>
+         ) : !loading ? (
+           <motion.div
+             initial={{ opacity: 0 }}
+             animate={{ opacity: 1 }}
+             className="flex items-center justify-center min-h-[50vh]"
+           >
+             <div className="text-center space-y-4">
+               <div className="text-6xl">📖</div>
+               <div>
+                 <h3 className="text-lg font-semibold text-foreground mb-2">
+                   Bem-vindo à Bíblia
+                 </h3>
+                 <p className="text-muted-foreground mb-4">
+                   Toque no controle abaixo para escolher um livro
+                 </p>
+               </div>
              </div>
-           </div>
-         </motion.div>
-       ) : null}
-     </AnimatePresence>
+           </motion.div>
+         ) : null}
+       </AnimatePresence>
+     </div>
 
      {/* Controles de navegação */}
      <BibleChapterControls />

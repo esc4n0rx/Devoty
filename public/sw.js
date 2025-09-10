@@ -1,9 +1,7 @@
-// public/sw.js
-const CACHE_VERSION = 'v1.0.7'; // Incremente esta versão a cada deploy
+const CACHE_VERSION = 'v1.0.8'; 
 const CACHE_NAME = `devoty-${CACHE_VERSION}`;
 const DATA_CACHE_NAME = `devoty-data-${CACHE_VERSION}`;
 
-// URLs para cache (recursos estáticos)
 const STATIC_URLS = [
   '/',
   '/manifest.json',
@@ -11,10 +9,8 @@ const STATIC_URLS = [
   '/animations/Fire.lottie',
   '/icon-192x192.png',
   '/icon-512x512.png',
-  // Adicione outros recursos estáticos aqui
 ];
 
-// URLs da API que devem usar cache com fallback
 const API_URLS = [
   '/api/auth/profile',
   '/api/devocionais',
@@ -22,7 +18,6 @@ const API_URLS = [
   '/api/diary',
 ];
 
-// URLs que devem sempre vir da rede (sem cache)
 const NETWORK_ONLY_URLS = [
   '/api/auth/login',
   '/api/auth/register',
@@ -30,36 +25,31 @@ const NETWORK_ONLY_URLS = [
   '/api/devocionais/gerar',
 ];
 
-// Instalação do Service Worker
 self.addEventListener('install', (event) => {
   console.log(`[SW] Installing version ${CACHE_VERSION}`);
   
   event.waitUntil(
     Promise.all([
-      // Cache de recursos estáticos
       caches.open(CACHE_NAME).then((cache) => {
         console.log('[SW] Caching static resources');
         return cache.addAll(STATIC_URLS);
       }),
-      // Cache de dados da API
       caches.open(DATA_CACHE_NAME).then((cache) => {
         console.log('[SW] Data cache created');
         return cache;
       })
     ]).then(() => {
-      // Força a ativação imediata do novo SW
       return self.skipWaiting();
     })
   );
 });
 
-// Ativação do Service Worker
+
 self.addEventListener('activate', (event) => {
   console.log(`[SW] Activating version ${CACHE_VERSION}`);
   
   event.waitUntil(
     Promise.all([
-      // Limpar caches antigos
       caches.keys().then((cacheNames) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
@@ -72,12 +62,10 @@ self.addEventListener('activate', (event) => {
           })
         );
       }),
-      // Tomar controle de todas as abas abertas
       self.clients.claim()
     ]).then(() => {
       console.log(`[SW] Version ${CACHE_VERSION} is now active`);
       
-      // Notificar todas as abas sobre a atualização
       return self.clients.matchAll().then((clients) => {
         clients.forEach((client) => {
           client.postMessage({
@@ -90,40 +78,33 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Interceptação de requests
+
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  
-  // Apenas interceptar requests do mesmo origin
+
   if (url.origin !== location.origin) {
     return;
   }
 
-  // Network-only URLs (sempre da rede)
   if (NETWORK_ONLY_URLS.some(pattern => url.pathname.includes(pattern))) {
     event.respondWith(fetch(event.request));
     return;
   }
 
-  // API requests (cache com fallback para rede)
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(handleApiRequest(event.request));
     return;
   }
 
-  // Recursos estáticos (cache first)
   event.respondWith(handleStaticRequest(event.request));
 });
 
-// Handler para requests de API
 async function handleApiRequest(request) {
   const url = new URL(request.url);
   
   try {
-    // Tentar buscar da rede primeiro
     const networkResponse = await fetch(request);
     
-    // Se for um GET request bem-sucedido, cachear a resposta
     if (request.method === 'GET' && networkResponse.ok) {
       const cache = await caches.open(DATA_CACHE_NAME);
       cache.put(request, networkResponse.clone());
@@ -133,13 +114,11 @@ async function handleApiRequest(request) {
   } catch (error) {
     console.log(`[SW] Network failed for ${url.pathname}, trying cache`);
     
-    // Se a rede falhar, tentar buscar do cache
     const cachedResponse = await caches.match(request);
     if (cachedResponse) {
       return cachedResponse;
     }
     
-    // Se não houver cache, retornar resposta de erro
     return new Response(
       JSON.stringify({ 
         success: false, 
@@ -155,19 +134,15 @@ async function handleApiRequest(request) {
   }
 }
 
-// Handler para recursos estáticos
 async function handleStaticRequest(request) {
-  // Cache first strategy
   const cachedResponse = await caches.match(request);
   if (cachedResponse) {
     return cachedResponse;
   }
 
   try {
-    // Se não estiver no cache, buscar da rede
     const networkResponse = await fetch(request);
     
-    // Cachear recursos estáticos bem-sucedidos
     if (networkResponse.ok) {
       const cache = await caches.open(CACHE_NAME);
       cache.put(request, networkResponse.clone());
@@ -175,7 +150,6 @@ async function handleStaticRequest(request) {
     
     return networkResponse;
   } catch (error) {
-    // Fallback para página offline ou erro 404
     if (request.destination === 'document') {
       const cache = await caches.open(CACHE_NAME);
       return cache.match('/') || new Response('Offline', { status: 503 });
@@ -185,7 +159,7 @@ async function handleStaticRequest(request) {
   }
 }
 
-// Limpeza periódica de cache antigo
+
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();

@@ -13,6 +13,16 @@ interface BibleReaderProps {
   bookAbbrev: string
   fontSize: number
   version: string
+  saveBookmark: (verse: BibleVerse, color: string, note?: string) => Promise<void>
+}
+
+const HIGHLIGHT_COLORS: Record<string, { bg: string, text: string }> = {
+  yellow: { bg: 'bg-yellow-200/70', text: 'text-yellow-900' },
+  green:  { bg: 'bg-green-200/70',  text: 'text-green-900' },
+  blue:   { bg: 'bg-blue-200/70',   text: 'text-blue-900' },
+  pink:   { bg: 'bg-pink-200/70',   text: 'text-pink-900' },
+  purple: { bg: 'bg-purple-200/70', text: 'text-purple-900' },
+  orange: { bg: 'bg-orange-200/70', text: 'text-orange-900' },
 }
 
 export function BibleReader({ 
@@ -20,7 +30,8 @@ export function BibleReader({
   bookName, 
   bookAbbrev, 
   fontSize, 
-  version 
+  version, 
+  saveBookmark
 }: BibleReaderProps) {
   const [selectedVerse, setSelectedVerse] = useState<BibleVerse | null>(null)
   const [showActions, setShowActions] = useState(false)
@@ -58,39 +69,51 @@ export function BibleReader({
         </div>
 
         {/* Versículos */}
-        <div className="max-w-2xl mx-auto space-y-6">
-          {chapter.verses.map((verse, index) => (
-            <motion.div
-              key={verse.n}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.02 }}
-              className={`
-                group cursor-pointer transition-all duration-200
-                ${selectedVerse?.n === verse.n 
-                  ? 'bg-accent/10 -mx-4 px-4 py-2 rounded-lg' 
-                  : 'hover:bg-accent/5 -mx-2 px-2 py-1 rounded'
-                }
-              `}
-              onClick={() => handleVerseClick(verse)}
-            >
-              <div className="flex gap-3">
-                <span 
-                  className="flex-shrink-0 text-accent font-medium text-sm mt-1 min-w-[1.5rem]"
-                  style={{ fontSize: Math.max(fontSize - 2, 12) }}
-                >
-                  {verse.n}
-                </span>
-                
-                <p 
-                  className="text-foreground leading-relaxed flex-1"
-                  style={{ fontSize }}
-                >
-                  {verse.text}
-                </p>
-              </div>
-            </motion.div>
-          ))}
+        <div className="max-w-2xl mx-auto space-y-1">
+          {chapter.verses.map((verse, index) => {
+            const highlight = verse.highlightColor ? HIGHLIGHT_COLORS[verse.highlightColor] : null
+            
+            return (
+              <motion.div
+                key={verse.n}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.02 }}
+                className={`
+                  group cursor-pointer transition-all duration-200 rounded-lg
+                  ${selectedVerse?.n === verse.n 
+                    ? 'bg-accent/10 -mx-4 px-4 py-2' 
+                    : highlight
+                    ? `${highlight.bg} ${highlight.text} -mx-4 px-4 py-2`
+                    : 'hover:bg-accent/5 -mx-2 px-2 py-1'
+                  }
+                `}
+                onClick={() => handleVerseClick(verse)}
+              >
+                <div className="flex gap-3">
+                  <span 
+                    className={`
+                      flex-shrink-0 font-medium text-sm mt-1 min-w-[1.5rem]
+                      ${highlight ? 'text-current/80' : 'text-accent'}
+                    `}
+                    style={{ fontSize: Math.max(fontSize - 2, 12) }}
+                  >
+                    {verse.n}
+                  </span>
+                  
+                  <p 
+                    className={`
+                      leading-relaxed flex-1
+                      ${highlight ? 'text-current' : 'text-foreground'}
+                    `}
+                    style={{ fontSize }}
+                  >
+                    {verse.text}
+                  </p>
+                </div>
+              </motion.div>
+            )
+          })}
         </div>
       </div>
 
@@ -103,6 +126,7 @@ export function BibleReader({
           bookAbbrev={bookAbbrev}
           isOpen={showActions}
           onClose={handleCloseActions}
+          onSave={saveBookmark}
         />
       )}
     </>

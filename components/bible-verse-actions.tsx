@@ -4,7 +4,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
-import { Bookmark, Copy, Share, MessageSquare } from 'lucide-react'
+import { Bookmark, Copy, Share } from 'lucide-react'
 import { toast } from 'sonner'
 import { BibleBookmarkModal } from './bible-bookmark-modal'
 import type { BibleVerse } from '@/types/bible'
@@ -16,6 +16,7 @@ interface BibleVerseActionsProps {
   bookAbbrev: string
   isOpen: boolean
   onClose: () => void
+  onSave: (verse: BibleVerse, color: string, note?: string) => Promise<void>
 }
 
 export function BibleVerseActions({
@@ -24,7 +25,8 @@ export function BibleVerseActions({
   chapter,
   bookAbbrev,
   isOpen,
-  onClose
+  onClose,
+  onSave
 }: BibleVerseActionsProps) {
   const [showBookmarkModal, setShowBookmarkModal] = useState(false)
 
@@ -40,15 +42,19 @@ export function BibleVerseActions({
   }
 
   const handleShare = async () => {
+    const text = `"${verse.text}" - ${bookName} ${chapter}:${verse.n}`
     if (navigator.share) {
       try {
         await navigator.share({
           title: `${bookName} ${chapter}:${verse.n}`,
-          text: `"${verse.text}" - ${bookName} ${chapter}:${verse.n}`
+          text
         })
         onClose()
       } catch (error) {
-        handleCopy() // Fallback para copy
+        // Ignora o erro de "AbortError" que ocorre se o usuário fechar o diálogo de compartilhamento
+        if ((error as Error).name !== 'AbortError') {
+          handleCopy() // Fallback para copiar em outros erros
+        }
       }
     } else {
       handleCopy()
@@ -59,7 +65,10 @@ export function BibleVerseActions({
     setShowBookmarkModal(true)
   }
 
-  const handleBookmarkSave = () => {
+  const handleBookmarkSave = async (note?: string, color?: string) => {
+    if (color) {
+      await onSave(verse, color, note)
+    }
     setShowBookmarkModal(false)
     onClose()
   }
