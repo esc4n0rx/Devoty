@@ -221,7 +221,7 @@ function BookSelector({ bibleData, currentBookAbbrev, currentChapter, onBookChan
   }
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex flex-col max-h-[400px]">
       <div className="p-4 border-b">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -233,7 +233,7 @@ function BookSelector({ bibleData, currentBookAbbrev, currentChapter, onBookChan
           />
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-hidden">
         <AnimatePresence mode="wait">
           {!selectedBookAbbrev ? (
             <motion.div
@@ -241,14 +241,15 @@ function BookSelector({ bibleData, currentBookAbbrev, currentChapter, onBookChan
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
+              className="h-full"
             >
-              <ScrollArea className="h-full">
+              <ScrollArea className="h-[240px]">
                 <div className="p-2">
                   {filteredBooks.map((book: any) => (
                     <Button
                       key={book.abbrev}
                       variant={'ghost'}
-                      className="w-full justify-start"
+                      className="w-full justify-start h-12 mb-1"
                       onClick={() => handleBookSelect(book.abbrev)}
                     >
                       {book.name}
@@ -272,7 +273,7 @@ function BookSelector({ bibleData, currentBookAbbrev, currentChapter, onBookChan
                 </Button>
                 <h3 className="font-bold text-lg mb-2">{selectedBook?.name}</h3>
               </div>
-              <ScrollArea className="flex-1">
+              <ScrollArea className="flex-1 max-h-[200px]">
                 <div className="p-2 grid grid-cols-5 gap-2">
                   {selectedBook && Array.from({ length: selectedBook.chapters }, (_, i) => i + 1).map((chapter) => (
                     <Button
