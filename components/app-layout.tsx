@@ -40,7 +40,7 @@ export function AppLayout({ children, activeTab, onTabChange }: AppLayoutProps) 
       </motion.div>
 
       {/* Conteúdo principal */}
-      <div className="flex-1 relative overflow-hidden">
+      <div className="flex-1 relative overflow-hidden pb-16">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
