@@ -2,16 +2,39 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { User, Flame } from "lucide-react"
+import { User, Flame, ArrowLeft } from "lucide-react"
 import { motion } from "framer-motion"
 import { useAuth } from "@/hooks/use-auth"
 
 interface AppHeaderProps {
   onProfileClick: () => void
+  title?: string
+  onBack?: () => void
 }
 
-export function AppHeader({ onProfileClick }: AppHeaderProps) {
+export function AppHeader({ onProfileClick, title, onBack }: AppHeaderProps) {
   const { user } = useAuth()
+
+  if (onBack && title) {
+    return (
+      <header className="bg-card/95 backdrop-blur-md border-b border-border sticky top-0 z-50 shadow-sm">
+        <div className="flex items-center gap-4 px-6 py-4">
+          <motion.div initial={{ x: -50, opacity: 0 }} animate={{ x: 0, opacity: 1 }}>
+            <Button variant="ghost" size="icon" onClick={onBack}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </motion.div>
+          <motion.h1 
+            className="text-xl font-bold text-foreground"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            {title}
+          </motion.h1>
+        </div>
+      </header>
+    )
+  }
 
   if (!user) {
     return (

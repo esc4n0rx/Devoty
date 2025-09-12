@@ -11,11 +11,13 @@ import { useAuth } from "@/hooks/use-auth"
 
 interface AppLayoutProps {
   children: ReactNode
-  activeTab: string
-  onTabChange: (tab: string) => void
+  activeTab?: string
+  onTabChange?: (tab: string) => void
+  title?: string
+  onBack?: () => void
 }
 
-export function AppLayout({ children, activeTab, onTabChange }: AppLayoutProps) {
+export function AppLayout({ children, activeTab, onTabChange, title, onBack }: AppLayoutProps) {
   const { 
     showCongratulations, 
     congratulationsData, 
@@ -24,7 +26,9 @@ export function AppLayout({ children, activeTab, onTabChange }: AppLayoutProps) 
   const { user } = useAuth()
 
   const handleProfileClick = () => {
-    onTabChange("perfil")
+    if (onTabChange) {
+      onTabChange("perfil")
+    }
   }
 
   return (
@@ -36,17 +40,21 @@ export function AppLayout({ children, activeTab, onTabChange }: AppLayoutProps) 
         transition={{ duration: 0.6, ease: "easeOut" }}
         className="flex-shrink-0"
       >
-        <AppHeader onProfileClick={handleProfileClick} />
+        <AppHeader 
+          onProfileClick={handleProfileClick} 
+          title={title}
+          onBack={onBack}
+        />
       </motion.div>
 
       {/* Conteúdo principal */}
       <div className="flex-1 relative overflow-hidden pb-16">
         <AnimatePresence mode="wait">
           <motion.div
-            key={activeTab}
-            initial={{ x: 300, opacity: 0 }}
+            key={activeTab || title} // Use title as key for non-tab pages
+            initial={{ x: onBack ? 300 : 0, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            exit={{ x: -300, opacity: 0 }}
+            exit={{ x: onBack ? -300 : 0, opacity: 0 }}
             transition={{
               duration: 0.4,
               ease: [0.25, 0.46, 0.45, 0.94],
@@ -59,14 +67,16 @@ export function AppLayout({ children, activeTab, onTabChange }: AppLayoutProps) 
       </div>
 
       {/* Navigation fixo */}
-      <motion.div
-        initial={{ y: 100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
-        className="flex-shrink-0"
-      >
-        <BottomNavigation activeTab={activeTab} onTabChange={onTabChange} />
-      </motion.div>
+      {activeTab && onTabChange && (
+        <motion.div
+          initial={{ y: 100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
+          className="flex-shrink-0"
+        >
+          <BottomNavigation activeTab={activeTab} onTabChange={onTabChange} />
+        </motion.div>
+      )}
 
       {/* Modal Global de Parabéns */}
       {showCongratulations && congratulationsData && (

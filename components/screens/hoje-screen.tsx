@@ -3,13 +3,14 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Headphones, BookOpen, Heart, RefreshCw, Sparkles } from "lucide-react"
+import { Headphones, BookOpen, Heart, RefreshCw, Sparkles, StopCircle, PlayCircle } from "lucide-react"
 import { motion } from "framer-motion"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { DevocionalReader } from "@/components/devocional-reader"
 import { CongratulationsModal } from "@/components/congratulations-modal"
 import { useDevocionais } from "@/hooks/use-devocionais"
 import { useAuth } from "@/hooks/use-auth"
+import { useAudio } from "@/hooks/useAudio"
 import { NextDevocionalCountdown } from "../next-devocional-countdown"
 
 export function HojeScreen() {
@@ -27,6 +28,29 @@ export function HojeScreen() {
     closeCongratulations
   } = useDevocionais()
   const { user } = useAuth()
+  const { speak, cancel, speechState } = useAudio()
+
+  // Cancela a fala se o usuário navegar para o leitor ou desmontar o componente
+  useEffect(() => {
+    return () => {
+      if (speechState !== 'idle') {
+        cancel()
+      }
+    }
+  }, [cancel, speechState, showDevocional])
+
+  const handleAudio = () => {
+    if (speechState === 'playing' || speechState === 'paused') {
+      cancel()
+    } else if (devocionalDoDia) {
+      const fullText = `
+        ${devocionalDoDia.titulo}. 
+        Versículo base: ${devocionalDoDia.versiculo_base}. 
+        ${devocionalDoDia.conteudo}
+      `;
+      speak(fullText)
+    }
+  }
 
   if (showDevocional && devocionalDoDia) {
     return (
@@ -140,10 +164,14 @@ export function HojeScreen() {
                     <motion.div className="flex-1" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                       <Button 
                         className="w-full h-12 bg-accent hover:bg-accent/90 text-accent-foreground shadow-lg hover:shadow-xl transition-all duration-300"
-                        disabled
+                        onClick={handleAudio}
                       >
-                        <Headphones className="h-4 w-4 mr-2" />
-                        Ouvir (Em breve)
+                        {speechState === 'playing' || speechState === 'paused' ? (
+                          <StopCircle className="h-4 w-4 mr-2" />
+                        ) : (
+                          <PlayCircle className="h-4 w-4 mr-2" />
+                        )}
+                        {speechState === 'playing' || speechState === 'paused' ? 'Parar Áudio' : 'Ouvir'}
                       </Button>
                     </motion.div>
 

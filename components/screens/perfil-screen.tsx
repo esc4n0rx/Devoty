@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useDevocionais } from "@/hooks/use-devocionais"
 import { useDiary } from "@/hooks/use-diary"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useRouter } from "next/navigation"
 
 export function PerfilScreen() {
   const [isEditing, setIsEditing] = useState(false)
@@ -27,6 +28,7 @@ export function PerfilScreen() {
   const { devocionais, loading: devocionaisLoading } = useDevocionais()
   const { entries, loading: diaryLoading } = useDiary()
   const { toast } = useToast()
+  const router = useRouter()
 
   useEffect(() => {
     if (user) {
@@ -71,7 +73,7 @@ export function PerfilScreen() {
 
   const menuItems = [
     { icon: Calendar, label: "Histórico de leituras", color: "text-foreground", onClick: () => setShowHistory(true) },
-    { icon: Settings, label: "Configurações", color: "text-foreground", onClick: () => toast({ title: "Em breve", description: "Configurações serão implementadas em breve" }) },
+    { icon: Settings, label: "Configurações", color: "text-foreground", onClick: () => router.push('/perfil/ajustes') },
     { icon: LogOut, label: "Sair", color: "text-destructive", onClick: logout },
   ]
 

@@ -3,10 +3,12 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Heart, CheckCircle } from "lucide-react"
+import { ArrowLeft, Heart, CheckCircle, Play, Pause, StopCircle } from "lucide-react"
 import { motion } from "framer-motion"
 import type { Devocional } from "@/types/devocional"
 import { CongratulationsModal } from "@/components/congratulations-modal"
+import { useAudio } from "@/hooks/useAudio"
+import { useEffect, useMemo } from "react"
 
 interface DevocionalReaderProps {
   devocional: Devocional
@@ -37,6 +39,39 @@ export function DevocionalReader({
   onCloseCongratulations,
   userName = "Amigo"
 }: DevocionalReaderProps) {
+  const { speechState, speak, pause, resume, cancel } = useAudio()
+
+  // Garante que o áudio pare ao sair do leitor
+  useEffect(() => {
+    return () => {
+      cancel()
+    }
+  }, [cancel])
+
+  const fullDevocionalText = useMemo(() => {
+    return `
+      Devocional: ${devocional.titulo}. 
+      Versículo base: ${devocional.versiculo_base}. 
+      Passagem bíblica: ${devocional.passagem_biblica}. 
+      Reflexão: ${devocional.conteudo}. 
+      Oração: ${devocional.oracao}.
+    `;
+  }, [devocional])
+
+  const handlePlayPause = () => {
+    if (speechState === 'idle') {
+      speak(fullDevocionalText)
+    } else if (speechState === 'paused') {
+      resume()
+    } else {
+      pause()
+    }
+  }
+
+  const handleStop = () => {
+    cancel()
+  }
+
   const handleConcluir = () => {
     if (onConcluir && !devocional.concluida) {
       onConcluir()
@@ -206,6 +241,38 @@ export function DevocionalReader({
           tituloDevocional={congratulationsData.titulo}
         />
       )}
+
+      {/* Floating Audio Controls */}
+      <motion.div
+        initial={{ y: 100 }}
+        animate={{ y: 0 }}
+        exit={{ y: 100 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        className="fixed bottom-4 left-1/2 -translate-x-1/2 w-auto bg-background/80 backdrop-blur-sm border border-border shadow-2xl rounded-full flex items-center gap-2 p-2"
+      >
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handlePlayPause}
+          className="w-14 h-14 rounded-full bg-accent/20 hover:bg-accent/30"
+        >
+          {speechState === 'playing' ? (
+            <Pause className="h-6 w-6 text-accent" />
+          ) : (
+            <Play className="h-6 w-6 text-accent" />
+          )}
+        </Button>
+        {(speechState === 'playing' || speechState === 'paused') && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleStop}
+            className="w-14 h-14 rounded-full hover:bg-destructive/20"
+          >
+            <StopCircle className="h-6 w-6 text-destructive" />
+          </Button>
+        )}
+      </motion.div>
     </>
   )
 }
