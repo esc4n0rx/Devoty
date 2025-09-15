@@ -15,6 +15,48 @@ async function scheduleDevotionalNotification(
   }
 
   try {
+    // Confere se o usuário tem subscription para push
+    const { data: subscriptions, error: subscriptionsError } = await supabase
+      .from('notification_subscriptions')
+      .select('id')
+      .eq('user_id', userId)
+      .limit(1)
+
+    if (subscriptionsError) {
+      if (subscriptionsError.code === '42P01') {
+        console.warn('Tabela notification_subscriptions não encontrada para agendar notificações.')
+        return
+      }
+      console.error('Erro ao verificar assinaturas de notificações:', subscriptionsError)
+      return
+    }
+
+    if (!subscriptions || subscriptions.length === 0) {
+      return
+    }
+
+    // Garante que o usuário existe
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', userId)
+      .limit(1)
+
+    if (usersError) {
+      if (usersError.code === '42P01') {
+        console.warn('Tabela users não encontrada para agendar notificações.')
+        return
+      }
+      console.error('Erro ao validar usuário para notificações:', usersError)
+      return
+    }
+
+    if (!users || users.length === 0) {
+      console.warn(`Usuário ${userId} não encontrado ao agendar notificações. Ignorando agendamento.`)
+      return
+    }
+
+    // Evita duplicar na fila
     const { data: existingRows, error: existingError } = await supabase
       .from('notification_queue')
       .select('id')
@@ -26,7 +68,6 @@ async function scheduleDevotionalNotification(
         console.warn('Tabela notification_queue não encontrada para agendar notificações.')
         return
       }
-
       console.error('Erro ao verificar fila de notificações:', existingError)
       return
     }
@@ -35,6 +76,7 @@ async function scheduleDevotionalNotification(
       return
     }
 
+    // Insere na fila
     const { error: insertError } = await supabase
       .from('notification_queue')
       .insert({
@@ -45,6 +87,13 @@ async function scheduleDevotionalNotification(
       })
 
     if (insertError) {
+      if (insertError.code === '23503') {
+        console.warn('Falha ao agendar notificação: relacionamento com usuário inválido.', {
+          userId,
+          devocionalId,
+        })
+        return
+      }
       console.error('Erro ao agendar notificação para devocional:', insertError)
     }
   } catch (error) {
@@ -62,7 +111,7 @@ async function getAuthenticatedUser(request: NextRequest) {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string; email: string }
     return decoded
-  } catch (error) {
+  } catch {
     return null
   }
 }
@@ -105,7 +154,7 @@ export async function GET(request: NextRequest) {
 
     // Buscar devocional de hoje usando timezone brasileiro
     const brazilianDateStart = getBrazilianDateForDB()
-    
+
     const { data: devocional, error } = await supabase
       .from('devocionais')
       .select('*')
