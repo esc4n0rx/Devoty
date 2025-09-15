@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v1.1.0'; 
+const CACHE_VERSION = 'v1.2.0'; 
 const CACHE_NAME = `devoty-${CACHE_VERSION}`;
 const DATA_CACHE_NAME = `devoty-data-${CACHE_VERSION}`;
 

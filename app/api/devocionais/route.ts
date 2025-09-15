@@ -15,6 +15,7 @@ async function scheduleDevotionalNotification(
   }
 
   try {
+    // Confere se o usuário tem subscription para push
     const { data: subscriptions, error: subscriptionsError } = await supabase
       .from('notification_subscriptions')
       .select('id')
@@ -26,7 +27,6 @@ async function scheduleDevotionalNotification(
         console.warn('Tabela notification_subscriptions não encontrada para agendar notificações.')
         return
       }
-
       console.error('Erro ao verificar assinaturas de notificações:', subscriptionsError)
       return
     }
@@ -35,6 +35,7 @@ async function scheduleDevotionalNotification(
       return
     }
 
+    // Garante que o usuário existe
     const { data: users, error: usersError } = await supabase
       .from('users')
       .select('id')
@@ -46,7 +47,6 @@ async function scheduleDevotionalNotification(
         console.warn('Tabela users não encontrada para agendar notificações.')
         return
       }
-
       console.error('Erro ao validar usuário para notificações:', usersError)
       return
     }
@@ -56,6 +56,7 @@ async function scheduleDevotionalNotification(
       return
     }
 
+    // Evita duplicar na fila
     const { data: existingRows, error: existingError } = await supabase
       .from('notification_queue')
       .select('id')
@@ -67,7 +68,6 @@ async function scheduleDevotionalNotification(
         console.warn('Tabela notification_queue não encontrada para agendar notificações.')
         return
       }
-
       console.error('Erro ao verificar fila de notificações:', existingError)
       return
     }
@@ -76,6 +76,7 @@ async function scheduleDevotionalNotification(
       return
     }
 
+    // Insere na fila
     const { error: insertError } = await supabase
       .from('notification_queue')
       .insert({
@@ -93,7 +94,6 @@ async function scheduleDevotionalNotification(
         })
         return
       }
-
       console.error('Erro ao agendar notificação para devocional:', insertError)
     }
   } catch (error) {
@@ -111,7 +111,7 @@ async function getAuthenticatedUser(request: NextRequest) {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string; email: string }
     return decoded
-  } catch (error) {
+  } catch {
     return null
   }
 }
@@ -154,7 +154,7 @@ export async function GET(request: NextRequest) {
 
     // Buscar devocional de hoje usando timezone brasileiro
     const brazilianDateStart = getBrazilianDateForDB()
-    
+
     const { data: devocional, error } = await supabase
       .from('devocionais')
       .select('*')
