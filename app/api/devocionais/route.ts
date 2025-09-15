@@ -3,6 +3,54 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import jwt from 'jsonwebtoken'
 import { getBrazilianDateForDB } from '@/lib/utils/timezone'
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+async function scheduleDevotionalNotification(
+  supabase: SupabaseClient<any, any, any>,
+  userId: string,
+  devocionalId: string | undefined
+) {
+  if (!devocionalId) {
+    return
+  }
+
+  try {
+    const { data: existingRows, error: existingError } = await supabase
+      .from('notification_queue')
+      .select('id')
+      .eq('devocional_id', devocionalId)
+      .limit(1)
+
+    if (existingError) {
+      if (existingError.code === '42P01') {
+        console.warn('Tabela notification_queue não encontrada para agendar notificações.')
+        return
+      }
+
+      console.error('Erro ao verificar fila de notificações:', existingError)
+      return
+    }
+
+    if (existingRows && existingRows.length > 0) {
+      return
+    }
+
+    const { error: insertError } = await supabase
+      .from('notification_queue')
+      .insert({
+        user_id: userId,
+        devocional_id: devocionalId,
+        status: 'pending',
+        scheduled_for: new Date().toISOString(),
+      })
+
+    if (insertError) {
+      console.error('Erro ao agendar notificação para devocional:', insertError)
+    }
+  } catch (error) {
+    console.error('Erro inesperado ao agendar notificação:', error)
+  }
+}
 
 async function getAuthenticatedUser(request: NextRequest) {
   const token = request.cookies.get('auth-token')?.value
@@ -83,6 +131,8 @@ export async function GET(request: NextRequest) {
         canGenerate: true
       })
     }
+
+    await scheduleDevotionalNotification(supabase, auth.userId, devocional.id)
 
     return NextResponse.json({
       success: true,

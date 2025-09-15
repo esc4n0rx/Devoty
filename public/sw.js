@@ -196,19 +196,123 @@ async function handleBackgroundSync() {
 
 // Push notifications (para futuras implementações)
 self.addEventListener('push', (event) => {
-  if (event.data) {
-    const data = event.data.json();
-    
-    event.waitUntil(
-      self.registration.showNotification(data.title, {
-        body: data.body,
-        icon: '/icon-192x192.png',
-        badge: '/icon-192x192.png',
-        data: data.url
-      })
-    );
-  }
+  event.waitUntil(handlePushNotification(event));
 });
+
+function extractNotificationSnippet(text, maxLength = 140) {
+  if (!text) {
+    return '';
+  }
+
+  const normalized = text
+    .toString()
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, maxLength - 1)}…`;
+}
+
+async function handlePushNotification(event) {
+  let payload = {};
+
+  if (event.data) {
+    try {
+      payload = event.data.json();
+    } catch (parseError) {
+      console.error('[SW] Erro ao ler payload de push:', parseError);
+    }
+  }
+
+  const defaultTitle = 'Devoty - Nova devocional disponível!';
+  const defaultBody = 'Sua devocional diária está pronta para leitura.';
+
+  let notificationTitle = payload.title || defaultTitle;
+  let notificationBody = payload.body || defaultBody;
+  let notificationUrl = payload.url || '/';
+  let notificationTag = payload.tag || 'devoty-devocional';
+
+  try {
+    const response = await fetch('/api/devocionais', {
+      credentials: 'include',
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const latestDevotional = data?.devocional;
+
+      if (latestDevotional) {
+        notificationTitle =
+          payload.title ||
+          (latestDevotional.titulo
+            ? `Devoty · ${latestDevotional.titulo}`
+            : defaultTitle);
+
+        const snippetSource =
+          latestDevotional.conteudo ||
+          latestDevotional.passagem_biblica ||
+          latestDevotional.versiculo_base ||
+          '';
+        const snippet = extractNotificationSnippet(snippetSource);
+
+        if (snippet) {
+          notificationBody = payload.body || snippet;
+        }
+
+        notificationUrl = payload.url || `/?devocional=${latestDevotional.id}`;
+        notificationTag = `devoty-devocional-${latestDevotional.id}`;
+      }
+    }
+  } catch (error) {
+    console.error('[SW] Erro ao buscar devocional para notificação:', error);
+  }
+
+  const notificationOptions = {
+    body: notificationBody,
+    icon: '/icon-192x192.png',
+    badge: '/icon-192x192.png',
+    data: notificationUrl,
+    tag: notificationTag,
+    renotify: true,
+  };
+
+  if (Array.isArray(payload.actions)) {
+    notificationOptions.actions = payload.actions;
+  }
+
+  const tasks = [
+    self.registration.showNotification(notificationTitle, notificationOptions),
+  ];
+
+  try {
+    const activeSubscription = await self.registration.pushManager.getSubscription();
+
+    if (activeSubscription) {
+      const subscriptionPayload = activeSubscription.toJSON();
+
+      tasks.push(
+        fetch('/api/notifications/subscribe', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({ subscription: subscriptionPayload }),
+        }).catch((persistError) => {
+          console.error('[SW] Erro ao atualizar assinatura de push:', persistError);
+        })
+      );
+    }
+  } catch (subscriptionError) {
+    console.error('[SW] Erro ao recuperar assinatura de push:', subscriptionError);
+  }
+
+  await Promise.all(tasks);
+}
 
 // Click em notificações
 self.addEventListener('notificationclick', (event) => {
