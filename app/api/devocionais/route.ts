@@ -3,6 +3,103 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import jwt from 'jsonwebtoken'
 import { getBrazilianDateForDB } from '@/lib/utils/timezone'
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+async function scheduleDevotionalNotification(
+  supabase: SupabaseClient<any, any, any>,
+  userId: string,
+  devocionalId: string | undefined
+) {
+  if (!devocionalId) {
+    return
+  }
+
+  try {
+    const { data: subscriptions, error: subscriptionsError } = await supabase
+      .from('notification_subscriptions')
+      .select('id')
+      .eq('user_id', userId)
+      .limit(1)
+
+    if (subscriptionsError) {
+      if (subscriptionsError.code === '42P01') {
+        console.warn('Tabela notification_subscriptions não encontrada para agendar notificações.')
+        return
+      }
+
+      console.error('Erro ao verificar assinaturas de notificações:', subscriptionsError)
+      return
+    }
+
+    if (!subscriptions || subscriptions.length === 0) {
+      return
+    }
+
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', userId)
+      .limit(1)
+
+    if (usersError) {
+      if (usersError.code === '42P01') {
+        console.warn('Tabela users não encontrada para agendar notificações.')
+        return
+      }
+
+      console.error('Erro ao validar usuário para notificações:', usersError)
+      return
+    }
+
+    if (!users || users.length === 0) {
+      console.warn(`Usuário ${userId} não encontrado ao agendar notificações. Ignorando agendamento.`)
+      return
+    }
+
+    const { data: existingRows, error: existingError } = await supabase
+      .from('notification_queue')
+      .select('id')
+      .eq('devocional_id', devocionalId)
+      .limit(1)
+
+    if (existingError) {
+      if (existingError.code === '42P01') {
+        console.warn('Tabela notification_queue não encontrada para agendar notificações.')
+        return
+      }
+
+      console.error('Erro ao verificar fila de notificações:', existingError)
+      return
+    }
+
+    if (existingRows && existingRows.length > 0) {
+      return
+    }
+
+    const { error: insertError } = await supabase
+      .from('notification_queue')
+      .insert({
+        user_id: userId,
+        devocional_id: devocionalId,
+        status: 'pending',
+        scheduled_for: new Date().toISOString(),
+      })
+
+    if (insertError) {
+      if (insertError.code === '23503') {
+        console.warn('Falha ao agendar notificação: relacionamento com usuário inválido.', {
+          userId,
+          devocionalId,
+        })
+        return
+      }
+
+      console.error('Erro ao agendar notificação para devocional:', insertError)
+    }
+  } catch (error) {
+    console.error('Erro inesperado ao agendar notificação:', error)
+  }
+}
 
 async function getAuthenticatedUser(request: NextRequest) {
   const token = request.cookies.get('auth-token')?.value
@@ -83,6 +180,8 @@ export async function GET(request: NextRequest) {
         canGenerate: true
       })
     }
+
+    await scheduleDevotionalNotification(supabase, auth.userId, devocional.id)
 
     return NextResponse.json({
       success: true,
